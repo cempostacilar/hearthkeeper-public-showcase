@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover lets env(safe-area-inset-*) work for the iPhone
+         notch/home-bar (the chat input relies on it). Inputs are kept at
+         16px so mobile browsers never auto-zoom on focus, so we do NOT
+         disable user scaling (keeps pinch-zoom for accessibility). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Hearthkeeper</title>
+    <!-- Apply theme BEFORE React paints to avoid a light-mode flash on
+         load. Reads localStorage; falls back to system preference. The
+         class is also re-applied by useTheme() on mount, but doing it
+         here makes the first paint correct. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("hk-theme");
+          var prefersDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var dark = saved === "dark" || (saved === null && prefersDark);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {
+          /* localStorage blocked or matchMedia unavailable -- default light */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

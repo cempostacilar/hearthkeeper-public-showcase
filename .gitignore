@@ -1,0 +1,11 @@
+*.db
+data/*.db
+.env
+.env.*
+frontend/dist/
+**/node_modules/
+.wwebjs_auth/
+order_history/
+order history to kickstart/
+USER_PREFERENCES.md
+data/reference/orders_seed.json

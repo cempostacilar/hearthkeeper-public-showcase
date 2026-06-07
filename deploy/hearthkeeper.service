@@ -1,0 +1,19 @@
+# systemd service unit for Hearthkeeper.
+# Install:  cp deploy/hearthkeeper.service /etc/systemd/system/
+#           systemctl daemon-reload && systemctl enable --now hearthkeeper
+
+[Unit]
+Description=Hearthkeeper grocery restock agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/Hearthkeeper
+# Run under Xvfb so the headed browser automation works without a display.
+ExecStart=/usr/bin/xvfb-run -a /root/Hearthkeeper/venv/bin/python /root/Hearthkeeper/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

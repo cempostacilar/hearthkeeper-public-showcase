@@ -1,0 +1,7 @@
+# Development-only tooling — NOT required to run the app.
+# Runtime dependencies are in requirements.txt.
+#
+#   Install:  python3 -m pip install -r requirements-dev.txt
+#   Lint:     ruff check .
+#   Format:   ruff format .      (review the diff before committing)
+ruff==0.8.6

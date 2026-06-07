@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Hearthkeeper - Backend Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- davidshimjs/qrcodejs (MIT) -- vendored at static/qrcode.min.js,
+     served by the app so it works even if external CDNs are blocked. -->
+<script src="/admin/qrcode.min.js"></script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  .node-text { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 600; fill: #f8fafc; }
+  .node-sub  { font-family: ui-sans-serif, system-ui, sans-serif; font-size: 9px; fill: #cbd5e1; }
+  .edge-line { stroke: #64748b; stroke-width: 1.5; fill: none; }
+  .edge-arrow { fill: #64748b; }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen pb-12">
+
+<header class="bg-slate-900 text-slate-100 shadow-md sticky top-0 z-10">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div>
+      <h1 class="text-base sm:text-lg font-semibold leading-tight">Hearthkeeper Backend</h1>
+      <p class="text-[11px] text-slate-400">Admin dashboard</p>
+    </div>
+    <div class="text-right text-[11px] text-slate-400">
+      <div>Updated <span id="last-updated">-</span></div>
+      <div class="mt-0.5"><span id="refresh-pulse" class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1 align-middle"></span>refreshing 20s</div>
+    </div>
+  </div>
+  <nav class="bg-slate-800 border-t border-slate-700">
+    <div class="max-w-6xl mx-auto px-3 sm:px-4">
+      <div class="flex gap-1" id="tab-nav">
+        <button data-tab="health" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-emerald-400 text-emerald-300">Health</button>
+        <button data-tab="orders" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200">Orders</button>
+        <button data-tab="visibility" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200">Visibility</button>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<main class="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+
+  <!-- ====================== HEALTH TAB ====================== -->
+  <div id="tab-health" class="tab-panel space-y-5 sm:space-y-7">
+
+    <section id="overall-banner" class="rounded-lg p-4 bg-slate-900 border border-slate-800">
+      <p class="text-sm text-slate-300">Loading status...</p>
+    </section>
+
+    <section class="bg-slate-900 rounded-lg border border-slate-800 p-3 sm:p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Job topology</h2>
+        <p class="text-[11px] text-slate-400 hidden sm:block">scroll horizontally on phone</p>
+      </div>
+      <div class="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
+        <svg id="flowchart" viewBox="0 0 800 460" class="min-w-[720px] w-full h-auto block">
+          <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" class="edge-arrow"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-3 text-[11px] text-slate-400">
+        <span class="inline-flex items-center"><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#22c55e"></span>healthy</span>
+        <span class="inline-flex items-center"><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#f59e0b"></span>attention</span>
+        <span class="inline-flex items-center"><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#ef4444"></span>down</span>
+        <span class="inline-flex items-center"><span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background:#9ca3af"></span>external / no data</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Per-job detail</h2>
+      <div id="job-cards" class="grid gap-3 md:grid-cols-2"></div>
+    </section>
+  </div>
+
+  <!-- ====================== ORDERS TAB ====================== -->
+  <div id="tab-orders" class="tab-panel hidden space-y-5 sm:space-y-7">
+
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="bg-slate-900 rounded-lg border border-slate-800 p-4">
+        <p class="text-[11px] uppercase tracking-wider text-slate-500">Total orders scraped</p>
+        <p id="totals-orders" class="text-2xl font-semibold mt-1 text-slate-100">-</p>
+      </div>
+      <div class="bg-slate-900 rounded-lg border border-slate-800 p-4">
+        <p class="text-[11px] uppercase tracking-wider text-slate-500">Total items</p>
+        <p id="totals-items" class="text-2xl font-semibold mt-1 text-slate-100">-</p>
+      </div>
+      <div class="bg-slate-900 rounded-lg border border-slate-800 p-4">
+        <p class="text-[11px] uppercase tracking-wider text-slate-500">Gross spend (AED)</p>
+        <p id="totals-gross" class="text-2xl font-semibold mt-1 text-slate-100">-</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Per-store breakdown</h2>
+        <div class="flex items-center gap-2">
+          <span id="run-poller-status" class="text-[11px] text-slate-500"></span>
+          <button id="run-poller-btn" type="button"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md
+                         bg-slate-900 text-white hover:bg-slate-700
+                         disabled:bg-slate-700 disabled:cursor-not-allowed transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span id="run-poller-btn-label">Run scrape now</span>
+          </button>
+        </div>
+      </div>
+      <div id="orders-store-cards" class="grid gap-3 md:grid-cols-2">
+        <p class="text-sm text-slate-500">Loading...</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Recent orders</h2>
+        <div class="flex items-center gap-3 text-[11px] text-slate-500">
+          <label class="flex items-center gap-1">
+            Store
+            <select id="orders-filter-store" class="border border-slate-700 rounded px-1 py-0.5 bg-slate-900 text-slate-200">
+              <option value="">all</option>
+            </select>
+          </label>
+          <label class="flex items-center gap-1">
+            Type
+            <select id="orders-filter-delivery" class="border border-slate-700 rounded px-1 py-0.5 bg-slate-900 text-slate-200">
+              <option value="">all</option>
+              <option value="now">NOW</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="">unlabeled</option>
+            </select>
+          </label>
+          <span id="orders-row-count" class="text-slate-400"></span>
+        </div>
+      </div>
+      <div class="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-800 text-slate-300 text-left">
+              <tr>
+                <th class="px-3 py-2 font-medium">Order date</th>
+                <th class="px-3 py-2 font-medium">Store</th>
+                <th class="px-3 py-2 font-medium">Ref</th>
+                <th class="px-3 py-2 font-medium">Status</th>
+                <th class="px-3 py-2 font-medium">Type</th>
+                <th class="px-3 py-2 font-medium text-right">Items</th>
+                <th class="px-3 py-2 font-medium text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody id="orders-list-tbody" class="divide-y divide-slate-800">
+              <tr><td colspan="7" class="px-3 py-3 text-slate-500">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <details class="bg-slate-900 rounded-lg border border-slate-800">
+        <summary class="px-3 py-2 cursor-pointer flex items-center justify-between text-xs uppercase tracking-wider text-slate-500 font-semibold select-none hover:bg-slate-800">
+          <span>Recent poller / deploy events (last 48 h)</span>
+          <span id="orders-events-count" class="text-[10px] text-slate-400 font-normal normal-case tracking-normal"></span>
+        </summary>
+        <p class="text-[11px] text-slate-500 px-3 pt-2">Opens UC Chrome on the host, logs into Carrefour + Kibsons, pulls new orders + pending statuses. Takes 1-3 min; new rows appear when it finishes.</p>
+        <div class="overflow-x-auto max-h-72 overflow-y-auto border-t border-slate-800 mt-2">
+          <table class="w-full text-[11px]">
+            <thead class="bg-slate-800 text-slate-300 text-left sticky top-0">
+              <tr>
+                <th class="px-3 py-1.5 font-medium">Time</th>
+                <th class="px-3 py-1.5 font-medium">Event</th>
+                <th class="px-3 py-1.5 font-medium">Source</th>
+                <th class="px-3 py-1.5 font-medium">Detail</th>
+              </tr>
+            </thead>
+            <tbody id="orders-events-tbody" class="divide-y divide-slate-800">
+              <tr><td colspan="4" class="px-3 py-2 text-slate-500">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <!-- ====================== VISIBILITY TAB ====================== -->
+  <div id="tab-visibility" class="tab-panel hidden space-y-5 sm:space-y-7">
+    <section class="rounded-lg p-4 bg-slate-900 border border-slate-800">
+      <h2 class="text-base font-semibold text-slate-100 mb-2">System visibility</h2>
+      <p class="text-[12px] text-slate-400 mb-3">
+        Aggregates over the last 7 days unless noted. Pulled from
+        <code class="text-amber-300">/api/diag/observability</code>.
+      </p>
+      <div class="text-[11px] text-slate-500 mb-3">
+        Generated <span id="obs-generated">-</span>
+      </div>
+
+      <!-- Cart success -->
+      <details open class="bg-slate-950/60 rounded p-3 mb-3 border border-slate-800">
+        <summary class="font-semibold text-sm text-slate-100">Cart-build success (7 days)</summary>
+        <div id="obs-cart-success" class="mt-3 text-[12px]">
+          <div class="text-slate-500">Loading...</div>
+        </div>
+      </details>
+
+      <!-- Notifications -->
+      <details open class="bg-slate-950/60 rounded p-3 mb-3 border border-slate-800">
+        <summary class="font-semibold text-sm text-slate-100">WhatsApp notifications (7 days)</summary>
+        <div id="obs-notifications" class="mt-3 text-[12px]">
+          <div class="text-slate-500">Loading...</div>
+        </div>
+      </details>
+
+      <!-- LLM spend -->
+      <details open class="bg-slate-950/60 rounded p-3 mb-3 border border-slate-800">
+        <summary class="font-semibold text-sm text-slate-100">LLM spend</summary>
+        <div id="obs-llm" class="mt-3 text-[12px]">
+          <div class="text-slate-500">Loading...</div>
+        </div>
+      </details>
+
+      <!-- Errors -->
+      <details open class="bg-slate-950/60 rounded p-3 mb-3 border border-slate-800">
+        <summary class="font-semibold text-sm text-slate-100">Errors (last 24h)</summary>
+        <div id="obs-errors" class="mt-3 text-[12px]">
+          <div class="text-slate-500">Loading...</div>
+        </div>
+      </details>
+
+      <!-- Scheduler heartbeats -->
+      <details open class="bg-slate-950/60 rounded p-3 mb-3 border border-slate-800">
+        <summary class="font-semibold text-sm text-slate-100">Scheduler heartbeats</summary>
+        <div id="obs-heartbeats" class="mt-3 text-[12px]">
+          <div class="text-slate-500">Loading...</div>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <p class="text-center text-[11px] text-slate-400 mt-6">
+    Hearthkeeper - serving from your home Ally X
+  </p>
+</main>
+
+<script>
+"use strict";
+
+// Hardcoded layout. Coordinates are inside the SVG viewBox (0..800, 0..460).
+// External nodes are rendered with a darker fill and 'external' subtext.
+const NODE_W = 140, NODE_H = 50;
+const NODE_POSITIONS = {
+  "external_cloudflare":     { x:  60, y:  20, label: "Cloudflare Edge",  external: true },
+  "external_whatsapp":       { x: 220, y:  20, label: "WhatsApp Inbound", external: true },
+  "watchdog":                { x: 400, y:  20 },
+  "db_backup":               { x: 580, y:  20 },
+  "hearthkeeper-cloudflared":{ x:  60, y: 130 },
+  "hearthkeeper-whatsapp":   { x: 220, y: 130 },
+  "hearthkeeper-app":        { x: 330, y: 230 },
+  "nudge_scheduler":         { x:  20, y: 370 },
+  "order_poller":            { x: 175, y: 370 },
+  "feedback_timeout":        { x: 330, y: 370 },
+  "nightly_scraper":         { x: 485, y: 370 },
+  "cart_builder":            { x: 640, y: 370 },
+};
+
+function statusColor(s) {
+  switch ((s||"unknown").toLowerCase()) {
+    case "green": return "#22c55e";
+    case "amber": return "#f59e0b";
+    case "red":   return "#ef4444";
+    case "gray":  return "#9ca3af";
+    default:      return "#6b7280";
+  }
+}
+function statusFillSoft(s) {
+  switch ((s||"unknown").toLowerCase()) {
+    case "green": return "#14532d";
+    case "amber": return "#78350f";
+    case "red":   return "#7f1d1d";
+    case "gray":  return "#374151";
+    default:      return "#1e293b";
+  }
+}
+
+async function fetchData() {
+  try {
+    const r = await fetch("/api/health/jobs", { credentials: "include" });
+    if (r.status === 401 || r.status === 403) {
+      window.location.href = "/login?next=/admin/dashboard";
+      return null;
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } catch (e) {
+    document.getElementById("overall-banner").innerHTML =
+      '<p class="text-sm text-red-300">Failed to fetch /api/health/jobs: ' + (e.message||e) + '</p>';
+    document.getElementById("overall-banner").className =
+      "rounded-lg p-4 bg-red-950/40 border border-red-800";
+    return null;
+  }
+}
+
+function el(ns, tag, attrs, children) {
+  const e = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (children) for (const c of children) e.appendChild(c);
+  return e;
+}
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function renderFlowchart(data) {
+  const svg = document.getElementById("flowchart");
+  // Wipe everything except <defs>
+  Array.from(svg.children).forEach(c => { if (c.tagName !== "defs") svg.removeChild(c); });
+
+  const statusById = {};
+  for (const j of data.jobs) statusById[j.id] = j.current_status;
+  statusById["external_cloudflare"] = "gray";
+  statusById["external_whatsapp"] = "gray";
+
+  // Edges first (so nodes paint over them)
+  for (const e of data.edges) {
+    const from = NODE_POSITIONS[e.from];
+    const to = NODE_POSITIONS[e.to];
+    if (!from || !to) continue;
+    const x1 = from.x + NODE_W/2, y1 = from.y + NODE_H;
+    const x2 = to.x + NODE_W/2,   y2 = to.y;
+    const my = (y1 + y2) / 2;
+    const path = el(SVG_NS, "path", {
+      d: "M " + x1 + " " + y1 + " C " + x1 + " " + my + ", " + x2 + " " + my + ", " + x2 + " " + y2,
+      class: "edge-line",
+      "marker-end": "url(#arrowhead)"
+    });
+    svg.appendChild(path);
+  }
+
+  // Nodes
+  for (const [id, pos] of Object.entries(NODE_POSITIONS)) {
+    const status = statusById[id] || "unknown";
+    const fill = pos.external ? "#1e293b" : statusFillSoft(status);
+    const stroke = statusColor(status);
+    const job = data.jobs.find(j => j.id === id);
+
+    const g = el(SVG_NS, "g", { "data-id": id });
+    g.appendChild(el(SVG_NS, "rect", {
+      x: pos.x, y: pos.y, width: NODE_W, height: NODE_H, rx: 8,
+      fill: fill, stroke: stroke, "stroke-width": 1.8,
+    }));
+    if (!pos.external) {
+      const dot = el(SVG_NS, "circle", {
+        cx: pos.x + 12, cy: pos.y + 12, r: 5, fill: statusColor(status),
+      });
+      g.appendChild(dot);
+    }
+    const labelTxt = el(SVG_NS, "text", {
+      x: pos.x + NODE_W/2, y: pos.y + 22,
+      "text-anchor": "middle", class: "node-text",
+    });
+    labelTxt.textContent = pos.label || (job && job.label) || id;
+    g.appendChild(labelTxt);
+
+    const subTxt = el(SVG_NS, "text", {
+      x: pos.x + NODE_W/2, y: pos.y + 38,
+      "text-anchor": "middle", class: "node-sub",
+    });
+    subTxt.textContent = pos.external ? "external" : ((job && job.type) ? job.type.replace(/_/g, " ") : "");
+    g.appendChild(subTxt);
+
+    // Clicking a node scrolls to its job card
+    if (!pos.external) {
+      g.style.cursor = "pointer";
+      g.addEventListener("click", () => {
+        const card = document.querySelector('[data-job-id="' + id + '"]');
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+
+    svg.appendChild(g);
+  }
+}
+
+function renderOverall(data) {
+  // Pull every callout from non-green jobs and rank them: red first, then amber.
+  const actions = [];
+  for (const j of data.jobs) {
+    if (j.current_status === "green") continue;
+    if (!j.callouts || j.callouts.length === 0) continue;
+    for (const c of j.callouts) {
+      actions.push({ status: j.current_status, jobId: j.id, jobLabel: j.label, text: c });
+    }
+  }
+  const weight = { red: 0, amber: 1, gray: 2, unknown: 3 };
+  actions.sort((a, b) => (weight[a.status] ?? 4) - (weight[b.status] ?? 4));
+  const top = actions.slice(0, 3);
+
+  const banner = document.getElementById("overall-banner");
+  if (top.length === 0) {
+    banner.className = "rounded-lg p-4 border bg-emerald-950/40 border-emerald-800 text-emerald-300";
+    banner.innerHTML =
+      '<p class="text-base font-semibold">All systems healthy</p>' +
+      '<p class="text-xs mt-1 opacity-75">Snapshot from ' + data.generated_at + '</p>';
+    return;
+  }
+
+  const worst = top[0].status;
+  const bgCls = worst === "red"
+    ? "bg-red-950/40 border-red-800 text-red-300"
+    : "bg-amber-950/40 border-amber-800 text-amber-300";
+  banner.className = "rounded-lg p-4 border " + bgCls;
+
+  // Build "Actions Required" header + up to 3 prioritised bullets.
+  banner.innerHTML = '<p class="text-base font-semibold mb-2">Actions Required</p>' +
+                     '<ul id="banner-actions" class="space-y-1.5"></ul>' +
+                     '<p class="text-[11px] mt-2 opacity-70">Snapshot from ' + data.generated_at + '</p>';
+  const ul = document.getElementById("banner-actions");
+  for (const a of top) {
+    const dotColor = a.status === "red" ? "#ef4444" : "#f59e0b";
+    const li = document.createElement("li");
+    li.className = "flex gap-2 text-sm leading-snug cursor-pointer hover:opacity-80";
+    li.innerHTML =
+      '<span class="inline-block w-2 h-2 rounded-full mt-2 shrink-0" style="background:' + dotColor + '"></span>' +
+      '<span><strong class="font-semibold">' + a.jobLabel + ':</strong> ' + a.text + '</span>';
+    li.addEventListener("click", () => {
+      const card = document.querySelector('[data-job-id="' + a.jobId + '"]');
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    ul.appendChild(li);
+  }
+}
+
+function renderSparkline(history) {
+  const cells = (history || []).slice(-24);
+  while (cells.length < 24) cells.unshift("gray");
+  const cellW = 9, cellH = 16, gap = 2;
+  const totalW = 24 * (cellW + gap);
+  const svg = el(SVG_NS, "svg", {
+    viewBox: "0 0 " + totalW + " " + cellH,
+    width: "100%", height: cellH,
+  });
+  cells.forEach((c, i) => {
+    svg.appendChild(el(SVG_NS, "rect", {
+      x: i * (cellW + gap), y: 0,
+      width: cellW, height: cellH, rx: 2,
+      fill: statusColor(c),
+    }));
+  });
+  return svg;
+}
+
+function renderJobCards(data) {
+  const grid = document.getElementById("job-cards");
+  grid.innerHTML = "";
+  // Red first, then amber, then green
+  const order = { red: 0, amber: 1, green: 2, unknown: 3 };
+  const sorted = data.jobs.slice().sort((a, b) =>
+    (order[a.current_status] ?? 4) - (order[b.current_status] ?? 4)
+  );
+  for (const job of sorted) {
+    const status = job.current_status || "unknown";
+    const borderCls = status === "red"   ? "border-red-800"
+                    : status === "amber" ? "border-amber-800"
+                    : "border-slate-800";
+    const card = document.createElement("div");
+    card.className = "bg-slate-900 rounded-lg border " + borderCls + " p-3 sm:p-4 shadow-sm";
+    card.setAttribute("data-job-id", job.id);
+
+    const head = document.createElement("div");
+    head.className = "flex items-start justify-between gap-3";
+
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "min-w-0 flex-1";
+    titleWrap.innerHTML =
+      '<h3 class="text-sm font-semibold text-slate-100">' + (job.label || job.id) + '</h3>' +
+      (job.description ? '<p class="text-xs text-slate-500 mt-0.5">' + job.description + '</p>' : '');
+
+    const badge = document.createElement("span");
+    const badgeBg = status === "green" ? "bg-emerald-900/50 text-emerald-300"
+                  : status === "amber" ? "bg-amber-900/50 text-amber-300"
+                  : status === "red"   ? "bg-red-900/50 text-red-300"
+                  : "bg-slate-800 text-slate-400";
+    badge.className = "shrink-0 inline-flex items-center text-[11px] font-medium px-2 py-1 rounded-full " + badgeBg;
+    const dot = document.createElement("span");
+    dot.className = "inline-block w-2 h-2 rounded-full mr-1.5";
+    dot.style.backgroundColor = statusColor(status);
+    badge.appendChild(dot);
+    badge.appendChild(document.createTextNode(status.toUpperCase()));
+
+    head.appendChild(titleWrap);
+    head.appendChild(badge);
+    card.appendChild(head);
+
+    const summary = document.createElement("p");
+    summary.className = "text-sm text-slate-300 mt-3";
+    summary.textContent = job.summary || "";
+    card.appendChild(summary);
+
+    if (job.history && job.history.length > 0) {
+      const sl = document.createElement("div");
+      sl.className = "mt-3";
+      sl.innerHTML = '<p class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Last 24 outcomes</p>';
+      sl.appendChild(renderSparkline(job.history));
+      card.appendChild(sl);
+    }
+
+    if (job.callouts && job.callouts.length > 0) {
+      const callsBg = status === "red" ? "bg-red-950/30 text-red-300"
+                   : status === "amber" ? "bg-amber-950/30 text-amber-300"
+                   : "bg-slate-800 text-slate-200";
+      const calls = document.createElement("div");
+      calls.className = "mt-3 rounded p-2 space-y-1 " + callsBg;
+      for (const c of job.callouts) {
+        const p = document.createElement("p");
+        p.className = "text-xs leading-snug break-words";
+        p.textContent = c;
+        calls.appendChild(p);
+      }
+      card.appendChild(calls);
+    }
+
+    // WhatsApp sidecar: when it isn't fully connected, fetch the pairing
+    // token from the local sidecar (via the auth-gated proxy) and render
+    // the QR inline so it's scannable from a phone.
+    if (job.id === "hearthkeeper-whatsapp" && job.current_status !== "green") {
+      const qrSection = document.createElement("div");
+      qrSection.className = "mt-3 p-3 bg-slate-800 border border-slate-700 rounded text-center";
+      qrSection.innerHTML =
+        '<p class="text-sm font-semibold text-slate-200">Scan from your WhatsApp</p>' +
+        '<p class="text-[11px] text-slate-500 mb-2">WhatsApp -> Settings -> Linked devices -> Link a device</p>' +
+        '<div data-qr-slot class="flex justify-center items-center min-h-[200px] text-xs text-slate-500">Loading QR...</div>' +
+        '<p class="text-[11px] mt-2 text-slate-500">Refreshes automatically</p>';
+      card.appendChild(qrSection);
+      const slot = qrSection.querySelector("[data-qr-slot]");
+      fetch("/api/health/whatsapp/qr", { credentials: "include" })
+        .then(r => r.json())
+        .then(data => {
+          if (data.qr && typeof QRCode !== "undefined") {
+            slot.innerHTML = "";
+            const container = document.createElement("div");
+            container.className = "inline-block bg-white p-2";
+            slot.appendChild(container);
+            try {
+              new QRCode(container, {
+                text: data.qr,
+                width: 240,
+                height: 240,
+                correctLevel: QRCode.CorrectLevel.M,
+              });
+            } catch (e) {
+              slot.textContent = "QR render failed: " + (e.message || e);
+            }
+          } else if (data.qr) {
+            slot.textContent = "QR ready but qrcode lib failed to load. Refresh the page.";
+          } else if (data.error) {
+            slot.textContent = "QR fetch error: " + data.error;
+          } else {
+            slot.textContent = data.message || "QR not yet ready (sidecar still starting?)";
+          }
+        })
+        .catch(e => {
+          slot.textContent = "QR fetch failed: " + (e.message || e);
+        });
+    }
+
+    grid.appendChild(card);
+  }
+}
+
+// ============================================================
+// ORDERS TAB
+// ============================================================
+
+async function fetchOrdersSummary() {
+  try {
+    const r = await fetch("/api/admin/orders-summary", { credentials: "include" });
+    if (r.status === 401 || r.status === 403) {
+      window.location.href = "/login?next=/admin/dashboard";
+      return null;
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } catch (e) {
+    return { error: (e.message || String(e)) };
+  }
+}
+
+function fmtNum(n) {
+  return (n || 0).toLocaleString("en-AE");
+}
+function fmtAED(n) {
+  return (n || 0).toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function statusPillCls(status) {
+  const s = (status || "").toLowerCase();
+  if (s === "delivered" || s === "completed") return "bg-emerald-900/50 text-emerald-300";
+  if (s === "cancelled" || s === "cancel" || s === "canceled") return "bg-red-900/50 text-red-300";
+  if (s === "processing" || s === "confirmed" || s === "dispatched") return "bg-amber-900/50 text-amber-300";
+  return "bg-slate-800 text-slate-400";
+}
+
+function eventLevelCls(event, level) {
+  if (level === "error" || event === "order_poller_error") return "bg-red-950/30 text-red-300";
+  if (event === "order_poller_skip") return "bg-slate-900 text-slate-500";
+  if (event === "order_poller_done") return "bg-emerald-950/30 text-emerald-300";
+  if (event === "order_poller_start") return "bg-amber-950/30 text-amber-300";
+  return "";
+}
+
+function renderOrders(data) {
+  if (!data || data.error) {
+    document.getElementById("orders-store-cards").innerHTML =
+      '<p class="text-sm text-red-700">Failed to load orders: ' + ((data && data.error) || "unknown") + '</p>';
+    document.getElementById("orders-events-tbody").innerHTML =
+      '<tr><td colspan="4" class="px-3 py-3 text-red-700">-</td></tr>';
+    return;
+  }
+
+  // Totals
+  document.getElementById("totals-orders").textContent = fmtNum(data.totals.orders);
+  document.getElementById("totals-items").textContent = fmtNum(data.totals.items);
+  document.getElementById("totals-gross").textContent = fmtAED(data.totals.gross_aed);
+
+  // Per-store cards
+  const grid = document.getElementById("orders-store-cards");
+  grid.innerHTML = "";
+  if (data.stores.length === 0) {
+    grid.innerHTML = '<p class="text-sm text-slate-500">No stores registered.</p>';
+  }
+  for (const s of data.stores) {
+    const card = document.createElement("div");
+    card.className = "bg-slate-900 rounded-lg border border-slate-800 p-4 shadow-sm";
+
+    const head = document.createElement("div");
+    head.className = "flex items-baseline justify-between gap-3 mb-2";
+    head.innerHTML =
+      '<h3 class="text-sm font-semibold text-slate-100">' + s.name + '</h3>' +
+      '<span class="text-xs text-slate-500">' + fmtNum(s.order_count) + ' orders</span>';
+    card.appendChild(head);
+
+    const stats = document.createElement("div");
+    stats.className = "grid grid-cols-3 gap-2 text-xs text-slate-400 mb-3";
+    stats.innerHTML =
+      '<div><p class="text-[10px] uppercase text-slate-400">Items</p><p class="font-medium text-slate-200">' + fmtNum(s.item_count) + '</p></div>' +
+      '<div><p class="text-[10px] uppercase text-slate-400">Gross AED</p><p class="font-medium text-slate-200">' + fmtAED(s.gross_aed) + '</p></div>' +
+      '<div><p class="text-[10px] uppercase text-slate-400">Date range</p><p class="font-medium text-slate-200 text-[11px]">' +
+        (s.oldest_order || "-") + '<br>&rarr; ' + (s.newest_order || "-") + '</p></div>';
+    card.appendChild(stats);
+
+    if (s.status_breakdown && s.status_breakdown.length > 0) {
+      const sb = document.createElement("div");
+      sb.className = "flex flex-wrap gap-1.5";
+      for (const row of s.status_breakdown) {
+        const pill = document.createElement("span");
+        pill.className = "inline-flex items-center text-[11px] px-2 py-0.5 rounded-full " + statusPillCls(row.status);
+        pill.textContent = (row.status || "unknown") + ": " + fmtNum(row.count);
+        sb.appendChild(pill);
+      }
+      card.appendChild(sb);
+    }
+
+    grid.appendChild(card);
+  }
+
+  // Recent orders list (filterable)
+  ordersAll = data.recent_orders || [];
+  renderOrdersList();
+
+  // Recent poller events
+  const tbody = document.getElementById("orders-events-tbody");
+  tbody.innerHTML = "";
+  const evCount = document.getElementById("orders-events-count");
+  if (evCount) evCount.textContent = (data.recent_poller_events || []).length + " entries";
+  if (!data.recent_poller_events || data.recent_poller_events.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-2 text-slate-500">No order-poller events in the last 48 h.</td></tr>';
+  } else {
+    for (const ev of data.recent_poller_events) {
+      const tr = document.createElement("tr");
+      tr.className = eventLevelCls(ev.event, ev.level);
+      tr.innerHTML =
+        '<td class="px-3 py-1.5 align-top whitespace-nowrap text-slate-400">' + ev.timestamp + '</td>' +
+        '<td class="px-3 py-1.5 align-top whitespace-nowrap font-medium">' + ev.event + '</td>' +
+        '<td class="px-3 py-1.5 align-top whitespace-nowrap text-slate-400">' + (ev.source || "-") + '</td>' +
+        '<td class="px-3 py-1.5 align-top text-slate-300 break-words">' + (ev.detail || "") + '</td>';
+      tbody.appendChild(tr);
+    }
+  }
+
+  // Sync the "Run scrape now" button state with the event trail so the
+  // spinner survives reloads and reflects any other client's trigger.
+  // If the user just clicked within the last 90 s, keep showing
+  // "running" even if the start row hasn't landed yet (DB write lag).
+  const justClicked = clientTriggeredAt && (Date.now() - clientTriggeredAt) < 90000;
+  if (isPollerRunningFromEvents(data.recent_poller_events) || justClicked) {
+    setRunButton("running", "Scrape in progress");
+  } else {
+    // If we just clicked and a _done/_error has now landed, show a short
+    // confirmation; otherwise idle.
+    if (clientTriggeredAt && (Date.now() - clientTriggeredAt) < 180000) {
+      const top = data.recent_poller_events[0];
+      if (top && top.event === "order_poller_done") {
+        setRunButton("idle", "Last run: " + (top.detail || "completed"));
+      } else if (top && top.event === "order_poller_error") {
+        setRunButton("error", "Last run failed: " + (top.detail || ""));
+      } else {
+        setRunButton("idle", "");
+      }
+    } else {
+      setRunButton("idle", "");
+    }
+  }
+}
+
+async function refreshOrders() {
+  const data = await fetchOrdersSummary();
+  renderOrders(data);
+}
+
+// ---- Recent orders list -------------------------------------------------
+
+let ordersAll = [];
+let ordersFilter = { store: "", delivery_type: null };  // null = no filter; "" = unlabeled
+
+function deliveryPillCls(t) {
+  const v = (t || "").toLowerCase();
+  if (v === "now")       return "bg-rose-900/50 text-rose-300";
+  if (v === "scheduled") return "bg-sky-900/50 text-sky-300";
+  return "bg-slate-800 text-slate-500";  // unlabeled
+}
+function deliveryPillText(t) {
+  const v = (t || "").toLowerCase();
+  if (v === "now")       return "NOW";
+  if (v === "scheduled") return "Scheduled";
+  return "-";
+}
+
+function rebuildOrdersStoreFilter() {
+  // Populate <select> with the distinct stores present in ordersAll.
+  // Only run when the option set actually changes -- avoid stomping user choice
+  // on every refresh.
+  const sel = document.getElementById("orders-filter-store");
+  if (!sel) return;
+  const seen = new Set(ordersAll.map(o => o.store));
+  const want = Array.from(seen).sort();
+  const haveValues = Array.from(sel.options).map(o => o.value).filter(v => v !== "");
+  const sameSet = haveValues.length === want.length &&
+                  haveValues.every((v, i) => v === want[i]);
+  if (sameSet) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">all</option>';
+  for (const s of want) {
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  }
+  if (want.includes(prev)) sel.value = prev;
+}
+
+function renderOrdersList() {
+  wireOrdersFilters();
+  rebuildOrdersStoreFilter();
+  const tbody = document.getElementById("orders-list-tbody");
+  if (!tbody) return;
+
+  const filtered = ordersAll.filter(o => {
+    if (ordersFilter.store && o.store !== ordersFilter.store) return false;
+    if (ordersFilter.delivery_type !== null) {
+      const want = ordersFilter.delivery_type;       // "now" | "scheduled" | ""
+      const have = (o.delivery_type || "").toLowerCase();
+      if (have !== want) return false;
+    }
+    return true;
+  });
+
+  document.getElementById("orders-row-count").textContent =
+    filtered.length + " of " + ordersAll.length;
+
+  tbody.innerHTML = "";
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="px-3 py-3 text-slate-500">No orders match the current filter.</td></tr>';
+    return;
+  }
+  for (const o of filtered) {
+    const tr = document.createElement("tr");
+    tr.className = "hover:bg-slate-800";
+    const pill = '<span class="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full ' +
+                 deliveryPillCls(o.delivery_type) + '">' + deliveryPillText(o.delivery_type) + '</span>';
+    const statusPill = '<span class="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full ' +
+                       statusPillCls(o.status) + '">' + (o.status || "-") + '</span>';
+    tr.innerHTML =
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap text-slate-300">' + (o.order_date || "-") + '</td>' +
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap text-slate-300">' + o.store + '</td>' +
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap font-mono text-slate-400">' + (o.order_ref || "-") + '</td>' +
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap">' + statusPill + '</td>' +
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap">' + pill + '</td>' +
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap text-right text-slate-400">' + fmtNum(o.item_count) + '</td>' +
+      '<td class="px-3 py-1.5 align-top whitespace-nowrap text-right text-slate-200 font-medium">' + fmtAED(o.total_amount) + '</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+// Wire filter changes -- one-time on DOMContentLoaded, plus retry below
+// in case the script is parsed before the elements exist.
+function wireOrdersFilters() {
+  const storeSel = document.getElementById("orders-filter-store");
+  const deliSel = document.getElementById("orders-filter-delivery");
+  if (!storeSel || !deliSel || storeSel.dataset.wired) return;
+  storeSel.dataset.wired = "1";
+  storeSel.addEventListener("change", () => {
+    ordersFilter.store = storeSel.value;
+    renderOrdersList();
+  });
+  deliSel.addEventListener("change", () => {
+    // delivery select has three real values: "now", "scheduled", "" (unlabeled).
+    // The "all" option also has value="" -- distinguish by selectedIndex.
+    if (deliSel.selectedIndex === 0) ordersFilter.delivery_type = null;
+    else ordersFilter.delivery_type = deliSel.value;
+    renderOrdersList();
+  });
+}
+
+// ---- Manual scrape trigger ----------------------------------------------
+//
+// State: an in-flight POST is detected by either (a) the most recent
+// order_poller_start in recent_poller_events has no matching _done/_error
+// after it, or (b) we just clicked the button and haven't seen the next
+// refresh land. We treat the button as "running" in either case so the
+// user can't double-fire and so the spinner survives a page reload.
+
+let clientTriggeredAt = 0;  // timestamp ms of last successful client trigger
+
+function isPollerRunningFromEvents(events) {
+  if (!events || events.length === 0) return false;
+  // events are sorted DESC by timestamp; first non-skip event tells us.
+  for (const ev of events) {
+    if (ev.event === "order_poller_skip") continue;
+    return ev.event === "order_poller_start";
+  }
+  return false;
+}
+
+function setRunButton(state, msg) {
+  const btn = document.getElementById("run-poller-btn");
+  const label = document.getElementById("run-poller-btn-label");
+  const status = document.getElementById("run-poller-status");
+  if (!btn) return;
+  if (state === "running") {
+    btn.disabled = true;
+    label.textContent = "Running...";
+    status.textContent = msg || "Scrape in progress";
+    status.className = "text-[11px] text-amber-700";
+  } else if (state === "error") {
+    btn.disabled = false;
+    label.textContent = "Run scrape now";
+    status.textContent = msg || "Failed -- try again";
+    status.className = "text-[11px] text-red-700";
+  } else {
+    btn.disabled = false;
+    label.textContent = "Run scrape now";
+    status.textContent = msg || "";
+    status.className = "text-[11px] text-slate-500";
+  }
+}
+
+async function triggerOrderPoller() {
+  setRunButton("running", "Kicking off...");
+  clientTriggeredAt = Date.now();
+  try {
+    const r = await fetch("/api/admin/run-order-poller", {
+      method: "POST", credentials: "include",
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 403) {
+      window.location.href = "/login?next=/admin/dashboard";
+      return;
+    }
+    if (r.status === 409) {
+      // Already running OR cart build holding the browser.
+      setRunButton("running", body.message || "Already running");
+      // Bring in the latest events so the user sees the in-flight start row.
+      refreshOrders();
+      return;
+    }
+    if (!r.ok) {
+      setRunButton("error", "HTTP " + r.status);
+      return;
+    }
+    setRunButton("running", body.message || "Started");
+    // Pull fresh events right away so the new _start row shows up without
+    // waiting for the next 20 s tick.
+    setTimeout(refreshOrders, 1500);
+  } catch (e) {
+    setRunButton("error", e.message || String(e));
+  }
+}
+
+// Attach handler when the page is parsed (the script is at the bottom of
+// the body, so the button already exists).
+const runBtn = document.getElementById("run-poller-btn");
+if (runBtn) runBtn.addEventListener("click", triggerOrderPoller);
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+
+let activeTab = "health";
+
+function activateTab(name) {
+  activeTab = name;
+  for (const btn of document.querySelectorAll(".tab-btn")) {
+    const isActive = btn.dataset.tab === name;
+    btn.classList.toggle("border-emerald-400", isActive);
+    btn.classList.toggle("text-emerald-300", isActive);
+    btn.classList.toggle("border-transparent", !isActive);
+    btn.classList.toggle("text-slate-400", !isActive);
+  }
+  for (const panel of document.querySelectorAll(".tab-panel")) {
+    panel.classList.toggle("hidden", panel.id !== "tab-" + name);
+  }
+  // Lazy-load orders data the first time the tab is opened, and any time
+  // the user clicks back to it (so it's never staler than one click).
+  if (name === "orders") refreshOrders();
+  if (name === "visibility") refreshObservability();
+}
+
+// Small fetch helper used by the visibility tab. Returns parsed JSON
+// or null on error so renders show a fallback rather than throwing.
+async function fetchJSON(url) {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    console.error("fetch failed", url, e);
+    return null;
+  }
+}
+
+document.getElementById("tab-nav").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  activateTab(btn.dataset.tab);
+});
+
+async function refresh() {
+  const pulse = document.getElementById("refresh-pulse");
+  pulse.style.backgroundColor = "#fbbf24";
+  const data = await fetchData();
+  pulse.style.backgroundColor = "#22c55e";
+  if (!data) return;
+  document.getElementById("last-updated").textContent = data.generated_at;
+  renderOverall(data);
+  renderFlowchart(data);
+  renderJobCards(data);
+  // Keep the orders tab fresh too if it's the visible one, so the user
+  // doesn't have to flip tabs to see new poller events land.
+  if (activeTab === "orders") refreshOrders();
+  // Same for visibility: re-pull observability if it's the visible tab.
+  if (activeTab === "visibility") refreshObservability();
+}
+
+// ────────────────────────────────────────────
+// Visibility tab (Wave 7 -- observability dashboard)
+// ────────────────────────────────────────────
+
+function pct(n, d) {
+  if (!d) return "-";
+  return (n / d * 100).toFixed(0) + "%";
+}
+
+function ago(iso) {
+  if (!iso) return "never";
+  try {
+    const t = new Date(iso.replace(" ", "T") + "Z");
+    const diff = Math.floor((Date.now() - t.getTime()) / 1000);
+    if (diff < 60) return diff + "s ago";
+    if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+    if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+    return Math.floor(diff / 86400) + "d ago";
+  } catch (_) { return iso; }
+}
+
+function renderCartSuccess(panel, data) {
+  const c = data.cart_success || {};
+  const stores = c.by_store_7d || {};
+  const fails = c.top_failure_classes_7d || [];
+  if (!Object.keys(stores).length && !fails.length) {
+    panel.innerHTML = '<div class="text-slate-500">No cart attempts in the last 7 days.</div>';
+    return;
+  }
+  let html = '<table class="w-full text-[12px]">';
+  html += '<thead><tr class="text-slate-400"><th class="text-left py-1">Store</th><th class="text-right py-1">Attempted</th><th class="text-right py-1">Succeeded</th><th class="text-right py-1">Rate</th></tr></thead><tbody>';
+  for (const [store, s] of Object.entries(stores)) {
+    const rate = (s.rate * 100).toFixed(0) + "%";
+    const cls = s.rate >= 0.9 ? "text-emerald-300" : s.rate >= 0.7 ? "text-amber-300" : "text-rose-300";
+    html += `<tr class="border-t border-slate-800"><td class="py-1">${store}</td><td class="text-right">${s.attempted}</td><td class="text-right">${s.succeeded}</td><td class="text-right ${cls}">${rate}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  if (fails.length) {
+    html += '<div class="mt-3 text-slate-300">Top failure classes:</div>';
+    html += '<ul class="mt-1 ml-3 text-slate-400">';
+    for (const f of fails) html += `<li>${f.class}: ${f.count}</li>`;
+    html += '</ul>';
+  }
+  panel.innerHTML = html;
+}
+
+function renderNotifications(panel, data) {
+  const n = data.notifications || {};
+  const keys = ["b2_order_placed", "b3_dispatched", "b4_today_deliveries", "b5_delivered", "b6_reminder"];
+  let html = '<table class="w-full text-[12px]">';
+  html += '<thead><tr class="text-slate-400"><th class="text-left py-1">Channel</th><th class="text-right py-1">Sent (7d)</th><th class="text-right py-1">Last sent</th></tr></thead><tbody>';
+  for (const k of keys) {
+    const info = n[k] || {};
+    const sent = info.sent_7d ?? 0;
+    const last = info.last_at ? ago(info.last_at) : "never";
+    const cls = sent === 0 ? "text-slate-500" : "text-slate-200";
+    html += `<tr class="border-t border-slate-800"><td class="py-1">${k}</td><td class="text-right ${cls}">${sent}</td><td class="text-right text-slate-400">${last}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  panel.innerHTML = html;
+}
+
+function renderLLM(panel, data) {
+  const l = data.llm || {};
+  const usage = l.usage || {};
+  const status = l.status || {};
+  if (l.error) {
+    panel.innerHTML = `<div class="text-rose-400">${l.error}</div>`;
+    return;
+  }
+  const okCls = status.ok ? "text-emerald-300" : "text-rose-300";
+  const okLabel = status.ok ? "OK" : `BLOCKED (${status.reason || "?"})`;
+  let html = `<div class="mb-2"><span class="text-slate-400">Status:</span> <span class="${okCls} font-semibold">${okLabel}</span></div>`;
+  // get_usage_summary shape: usage.today.{spend_usd, calls, remaining_usd}
+  //                          usage.month_to_date.{spend_usd, calls, remaining_usd}
+  const dailyCap = usage.daily_cap_usd || 0;
+  const monthCap = usage.monthly_cap_usd || 0;
+  const today = usage.today || {};
+  const mtd = usage.month_to_date || {};
+  html += '<table class="w-full text-[12px]">';
+  html += '<thead><tr class="text-slate-400"><th class="text-left py-1">Window</th><th class="text-right py-1">Calls</th><th class="text-right py-1">Spend</th><th class="text-right py-1">Remaining</th></tr></thead><tbody>';
+  const rows = [
+    ["Today", today.calls ?? 0, today.spend_usd ?? 0, today.remaining_usd ?? dailyCap, dailyCap],
+    ["Month", mtd.calls ?? 0, mtd.spend_usd ?? 0, mtd.remaining_usd ?? monthCap, monthCap],
+  ];
+  for (const [label, calls, spend, remaining, cap] of rows) {
+    html += `<tr class="border-t border-slate-800"><td class="py-1">${label}</td>` +
+            `<td class="text-right">${calls}</td>` +
+            `<td class="text-right">$${(spend).toFixed(4)}</td>` +
+            `<td class="text-right text-slate-400">$${(remaining).toFixed(4)} / $${(cap).toFixed(2)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  panel.innerHTML = html;
+}
+
+function renderErrors(panel, data) {
+  const e = data.errors_24h || {};
+  const total = e.total || 0;
+  if (total === 0) {
+    panel.innerHTML = '<div class="text-emerald-400">No errors in the last 24h.</div>';
+    return;
+  }
+  let html = `<div class="mb-2 text-amber-300">${total} errors in the last 24h.</div>`;
+  html += '<ul class="ml-3 text-slate-300">';
+  for (const [src, n] of Object.entries(e.by_source || {})) {
+    html += `<li>${src}: ${n}</li>`;
+  }
+  html += '</ul>';
+  panel.innerHTML = html;
+}
+
+function renderHeartbeats(panel, data) {
+  const hb = data.scheduler_heartbeats || {};
+  let html = '<table class="w-full text-[12px]">';
+  html += '<thead><tr class="text-slate-400"><th class="text-left py-1">Task</th><th class="text-right py-1">Last run</th></tr></thead><tbody>';
+  for (const [task, ts] of Object.entries(hb)) {
+    if (task === "error") continue;
+    const lastAgo = ts ? ago(ts) : "never";
+    let cls = "text-slate-200";
+    if (!ts) cls = "text-slate-500";
+    else if (lastAgo.endsWith("d ago") && parseInt(lastAgo, 10) > 1) cls = "text-amber-300";
+    html += `<tr class="border-t border-slate-800"><td class="py-1 font-mono">${task}</td><td class="text-right ${cls}">${lastAgo}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  panel.innerHTML = html;
+}
+
+async function refreshObservability() {
+  try {
+    const data = await fetchJSON("/api/diag/observability");
+    document.getElementById("obs-generated").textContent = data.generated_at || "-";
+    renderCartSuccess(document.getElementById("obs-cart-success"), data);
+    renderNotifications(document.getElementById("obs-notifications"), data);
+    renderLLM(document.getElementById("obs-llm"), data);
+    renderErrors(document.getElementById("obs-errors"), data);
+    renderHeartbeats(document.getElementById("obs-heartbeats"), data);
+  } catch (e) {
+    console.error("observability fetch failed", e);
+  }
+}
+
+refresh();
+setInterval(refresh, 20000);
+</script>
+</body>
+</html>

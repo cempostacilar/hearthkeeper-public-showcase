@@ -1,0 +1,7 @@
+# Project tooling configuration.
+# Currently used only by ruff (Python lint + format) — install it via
+# requirements-dev.txt, then run `ruff check .` or `ruff format .`.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
